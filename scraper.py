@@ -16,7 +16,8 @@ def get_posts(url, nb_post):
 
     for _ in range(nb_pages):
         print(old_url)
-        response = request(old_url, cookie=COOKIE
+        response = request(old_url, cookie=COOKIE)
+        soup = response.soup()
         posts = soup.scrape("a[class^='bylink comments']", "href")
         list_posts.update(posts)
         old_url = soup.scrape("span[class='next-button'] a", "href")[0]

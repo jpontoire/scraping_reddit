@@ -1,6 +1,6 @@
 from minet.web import request
 from math import ceil
-from ural import get_domain_name, urlpathsplit
+from ural import get_domain_name, urlpathsplit, is_url
 from auth import COOKIE
 from time import sleep
 import random
@@ -18,6 +18,13 @@ def get_new_url(url):
     return f"https://www.{domain}/" + "/".join(path)
 
 
+def is_user(user):
+    response = request(f"https://old.reddit.com/user/{user}")
+    if response.status == 200:
+        return True
+    return False
+
+
 def get_subreddit_url(subreddit: str):
     if subreddit.count("/") == 0:
         subreddit = f"r/{subreddit}"
@@ -26,6 +33,8 @@ def get_subreddit_url(subreddit: str):
 
 
 def verify_subreddit(sub_url):
+    if not is_url(sub_url):
+        sub_url = get_subreddit_url(sub_url)
     response = request(sub_url)
     soup = response.soup()
     verif = soup.scrape("div[class='flex flex-col justify-center']")
@@ -52,16 +61,21 @@ def get_posts_urls(url, nb_post):
 def get_posts(url, nb_post):
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
-        print(url)
         response = request(url, spoof_ua=True)
         soup = response.soup()
         title = soup.force_select_one("a[class^='title']").get_text()
         print(title)
-        upvote = soup.force_select_one(
-            "div[class='score'] span"
-        ).get_text()
-        sleep(random.uniform(0, 1))
+        upvote = soup.force_select_one("div[class='score'] span").get_text()
         print(upvote)
+        author = soup.scrape_one("a[class^='author']", "href")
+        print(author)
+        published_date = soup.scrape_one("div[class='date'] time", "datetime")
+        print(published_date)
+        link = soup.scrape_one("a[class^='title']", "href")
+        if urlpathsplit(link) == urlpathsplit(url):
+            link = None
+        print(link)
+        sleep(random.uniform(0, 1))
 
 
 # def get_comments(url):
@@ -71,4 +85,4 @@ def get_posts(url, nb_post):
 #     comments = soup.scrape()
 
 
-get_posts("https://www.reddit.com/r/france", 50)
+# get_posts("https://www.reddit.com/r/france", 10)

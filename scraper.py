@@ -41,6 +41,16 @@ def verify_subreddit(sub_url):
     return len(verif) == 0
 
 
+def has_reddit_comments(url):
+    url = get_old_url(url)
+    response = request(url)
+    soup = response.soup()
+    no_comments = soup.scrape_one("p[id='noresults']")
+    if no_comments == "there doesn't seem to be anything here":
+        return False
+    return True
+
+
 def get_posts_urls(url, nb_post):
     list_posts = set()
     nb_pages = ceil(nb_post / 25)

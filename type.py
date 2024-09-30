@@ -12,3 +12,12 @@ class RedditPost(TabularRecord):
     upvote: str
     published_date: str
     link: Optional[str]
+
+
+@dataclass
+class RedditComment(TabularRecord):
+    author: str
+    parent: str
+    points: Optional[str]
+    published_date: str
+    comment: str

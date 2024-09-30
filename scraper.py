@@ -4,7 +4,7 @@ from ural import get_domain_name, urlpathsplit, is_url
 from auth import COOKIE
 from time import sleep
 import random
-from type import RedditPost
+from type import RedditPost, RedditComment
 
 
 def get_old_url(url):
@@ -103,11 +103,14 @@ def get_posts(url, nb_post):
 
 
 
-# def get_comments(url):
-#     old_url = get_old_url(url)
-#     response = request(old_url, cookie=COOKIE)
-#     soup = response.soup()
-#     comments = soup.scrape()
+def get_comments(url):
+    old_url = get_old_url(url)
+    response = request(old_url, cookie=COOKIE)
+    soup = response.soup()
+    main_comments = soup.select("div[id^='siteTable_t3_']>div[id^='thing_t1']") # permet de récupérer tous les commentaires "racine"
+    return 
 
 
-print(get_posts_urls("https://www.reddit.com/r/france", 7))
+# print(get_posts_urls("https://www.reddit.com/r/france", 7))
+# print(get_comments("https://old.reddit.com/r/redditdev/comments/1fsl3dg/why_do_profile_images_return_a_403_forbidden/"))
+print(get_comments("https://old.reddit.com/r/france/comments/1fsqvy9/bruno_retailleau_juge_que_letat_de_droit_nest_pas/"))

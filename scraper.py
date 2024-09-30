@@ -4,6 +4,7 @@ from ural import get_domain_name, urlpathsplit, is_url
 from auth import COOKIE
 from time import sleep
 import random
+from type import RedditPost
 
 
 def get_old_url(url):
@@ -55,37 +56,51 @@ def get_posts_urls(url, nb_post):
     list_posts = set()
     nb_pages = ceil(nb_post / 25)
     old_url = get_old_url(url)
+    n_crawled = 0
 
     for _ in range(nb_pages):
         response = request(old_url, spoof_ua=True)
         soup = response.soup()
         list_buttons = soup.select("ul[class='flat-list buttons']")
         for link in list_buttons:
+            if n_crawled == nb_post:
+                break
             if len(link.scrape("span[class='promoted-span']")) == 0:
                 list_posts.update(link.scrape("a[class^='bylink comments']", "href"))
+                n_crawled += 1
         old_url = soup.scrape("span[class='next-button'] a", "href")[0]
         sleep(random.uniform(0, 1))
     return list_posts
 
 
 def get_posts(url, nb_post):
+    posts = []
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
         response = request(url, spoof_ua=True)
         soup = response.soup()
         title = soup.force_select_one("a[class^='title']").get_text()
-        print(title)
         upvote = soup.force_select_one("div[class='score'] span").get_text()
-        print(upvote)
         author = soup.scrape_one("a[class^='author']", "href")
-        print(author)
         published_date = soup.scrape_one("div[class='date'] time", "datetime")
-        print(published_date)
         link = soup.scrape_one("a[class^='title']", "href")
         if urlpathsplit(link) == urlpathsplit(url):
             link = None
-        print(link)
+        author_text = soup.scrape_one("div[id='siteTable'] div[class^='usertext-body'] div p")
+        post = RedditPost(
+            title=title,
+            url=url,
+            author=author,
+            author_text=author_text,
+            upvote=upvote,
+            published_date=published_date,
+            link=link
+        )
+        print(post)
+        posts.append(post)
         sleep(random.uniform(0, 1))
+    return posts
+
 
 
 # def get_comments(url):
@@ -95,4 +110,4 @@ def get_posts(url, nb_post):
 #     comments = soup.scrape()
 
 
-# get_posts("https://www.reddit.com/r/france", 10)
+print(get_posts_urls("https://www.reddit.com/r/france", 7))

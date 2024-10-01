@@ -5,12 +5,18 @@ from auth import COOKIE
 from time import sleep
 import random
 from type import RedditPost, RedditComment
+import json
+from ebbe import getpath
+from collections import deque
+from urllib.parse import urljoin
+
+# ajout d'un cookie optionnel pour accéder à des sub privés ?
 
 
 def get_old_url(url):
     domain = get_domain_name(url)
     path = urlpathsplit(url)
-    return f"https://old.{domain}/" + "/".join(path)
+    return f"https://old.{domain}/" + "/".join(path) + "/"
 
 
 def get_new_url(url):
@@ -86,7 +92,9 @@ def get_posts(url, nb_post):
         link = soup.scrape_one("a[class^='title']", "href")
         if urlpathsplit(link) == urlpathsplit(url):
             link = None
-        author_text = soup.scrape_one("div[id='siteTable'] div[class^='usertext-body'] div p")
+        author_text = soup.scrape_one(
+            "div[id='siteTable'] div[class^='usertext-body'] div p"
+        )
         post = RedditPost(
             title=title,
             url=url,
@@ -94,7 +102,7 @@ def get_posts(url, nb_post):
             author_text=author_text,
             upvote=upvote,
             published_date=published_date,
-            link=link
+            link=link,
         )
         print(post)
         posts.append(post)
@@ -102,15 +110,48 @@ def get_posts(url, nb_post):
     return posts
 
 
+def get_permalink(url, id):
+    if is_url(id):
+        return id
+    return urljoin(url, id) + "/"
+
+
+def get_json_link(url):
+    return urljoin(url, ".json")
+
 
 def get_comments(url):
+    list_return = []
+    list_comments = deque()
     old_url = get_old_url(url)
-    response = request(old_url, cookie=COOKIE)
-    soup = response.soup()
-    main_comments = soup.select("div[id^='siteTable_t3_']>div[id^='thing_t1']") # permet de récupérer tous les commentaires "racine"
-    return 
+    old_url_json = get_json_link(old_url)
+    list_comments.append(old_url_json)
+    while list_comments:
+        urls = list_comments.popleft()
+        response = request(get_json_link(get_permalink(old_url, urls)))
+        print(response.url)
+        json_page = json.loads(response.text())
+        for comment in json_page[1]["data"]["children"]:
+            if getpath(comment, ["data", "replies"]) != "":
+                replies = getpath(comment, ["data", "replies", "data", "children"])
+                for replie in replies:
+                    if replie["kind"] == "more":
+                        for ele in getpath(replie, ["data", "children"]):
+                            list_comments.append(ele)
+                    else:
+                        list_comments.append(getpath(replie, ["data", "id"]))
+            data = RedditComment(
+                id=getpath(comment, ["data", "name"]),
+                parent=getpath(comment, ["data", "parent_id"]),
+                comment=getpath(comment, ["data", "body"]),
+            )
+            list_return.append(data)
+        sleep(random.uniform(1, 3))
+    return len(list_return), list_return
 
 
-# print(get_posts_urls("https://www.reddit.com/r/france", 7))
-# print(get_comments("https://old.reddit.com/r/redditdev/comments/1fsl3dg/why_do_profile_images_return_a_403_forbidden/"))
-print(get_comments("https://old.reddit.com/r/france/comments/1fsqvy9/bruno_retailleau_juge_que_letat_de_droit_nest_pas/"))
+l, p = get_comments(
+    "https://old.reddit.com/r/france/comments/1ftg1s3/elle_aime_pas_le_jazz_moi_cest_les_madeleines/"
+)
+print(l)
+print(p)

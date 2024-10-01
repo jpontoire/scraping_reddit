@@ -16,8 +16,10 @@ class RedditPost(TabularRecord):
 
 @dataclass
 class RedditComment(TabularRecord):
-    author: str
+    # url: str
+    # author: str
+    id: str
     parent: str
-    points: Optional[str]
-    published_date: str
+    # points: Optional[str]
+    # published_date: str
     comment: str

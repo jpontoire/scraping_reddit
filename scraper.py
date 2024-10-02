@@ -11,6 +11,7 @@ from collections import deque
 from urllib.parse import urljoin
 
 # ajout d'un cookie optionnel pour accéder à des sub privés ?
+# -> peut poser problème de timeout
 
 
 def get_old_url(url):
@@ -22,7 +23,7 @@ def get_old_url(url):
 def get_new_url(url):
     domain = get_domain_name(url)
     path = urlpathsplit(url)
-    return f"https://www.{domain}/" + "/".join(path)
+    return f"https://www.{domain}/" + "/".join(path) + "/"
 
 
 def is_user(user):
@@ -130,16 +131,26 @@ def get_comments(url):
         urls = list_comments.popleft()
         response = request(get_json_link(get_permalink(old_url, urls)))
         print(response.url)
+        print(response.status)
+        while(response.status == 429):
+            sleep(20)
+            response = request(get_json_link(get_permalink(old_url, urls)))
+            print(response.url)
+            print(response.status)
         json_page = json.loads(response.text())
         for comment in json_page[1]["data"]["children"]:
-            if getpath(comment, ["data", "replies"]) != "":
-                replies = getpath(comment, ["data", "replies", "data", "children"])
-                for replie in replies:
-                    if replie["kind"] == "more":
-                        for ele in getpath(replie, ["data", "children"]):
-                            list_comments.append(ele)
-                    else:
-                        list_comments.append(getpath(replie, ["data", "id"]))
+            if comment["kind"] == "more":
+                for child in getpath(comment, ["data", "children"]):
+                    list_comments.append(child)
+            else:
+                if getpath(comment, ["data", "replies"]) != "":
+                    replies = getpath(comment, ["data", "replies", "data", "children"])
+                    for replie in replies:
+                        if replie["kind"] == "more":
+                            for ele in getpath(replie, ["data", "children"]):
+                                list_comments.append(ele)
+                        else:
+                            list_comments.append(getpath(replie, ["data", "id"]))
             data = RedditComment(
                 id=getpath(comment, ["data", "name"]),
                 parent=getpath(comment, ["data", "parent_id"]),
@@ -151,7 +162,7 @@ def get_comments(url):
 
 
 l, p = get_comments(
-    "https://old.reddit.com/r/france/comments/1ftg1s3/elle_aime_pas_le_jazz_moi_cest_les_madeleines/"
+    "https://old.reddit.com/r/reddit/comments/tqbf9w/bringing_back_rplace/"
 )
 print(l)
 print(p)

@@ -133,7 +133,7 @@ def get_childs(comment, list_comments: list):
                     for ele in getpath(replie, ["data", "children"]):
                         list_comments.append(ele)
                 else:
-                    list_comments.append(getpath(replie, ["data", "id"]))
+                    list_comments.append(replie)
     data = RedditComment(
         id=getpath(comment, ["data", "name"]),
         parent=getpath(comment, ["data", "parent_id"]),
@@ -149,26 +149,32 @@ def get_comments(url):
     old_url_json = get_json_link(old_url)
     list_comments.append(old_url_json)
     while list_comments:
-        urls = list_comments.popleft()
-        response = request(get_json_link(get_permalink(old_url, urls)))
-        print(response.url)
-        print(response.status)
-        while(response.status == 429):
-            sleep(20)
+        if len(list_comments)%2 == 0:
+            urls = list_comments.popleft()
+        else:
+            urls = list_comments.pop()
+        if len(urls) == 7 or isinstance(urls, str):
             response = request(get_json_link(get_permalink(old_url, urls)))
-            print(response.url)
             print(response.status)
-        json_page = json.loads(response.text())
-        for comment in json_page[1]["data"]["children"]:
-            data, list_comments = get_childs(comment, list_comments)
+            while(response.status == 429):
+                sleep(120)
+                response = request(get_json_link(get_permalink(old_url, urls)))
+                print(response.status)
+            json_page = json.loads(response.text())
+            for comment in json_page[1]["data"]["children"]:
+                data, list_comments = get_childs(comment, list_comments)
+                list_return.append(data)
+            sleep(random.uniform(0, 1))
+        else:
+            print("42")
+            data, list_comments = get_childs(urls, list_comments)
             list_return.append(data)
-        sleep(random.uniform(1, 3))
     return len(list_return), list_return
 
 
 l, p = get_comments(
-    "https://old.reddit.com/r/france/comments/1fudnpv/famous_ai_artist_says_hes_losing_millions_of/"
+    "https://old.reddit.com/r/reddit/comments/tqbf9w/bringing_back_rplace/"
 )
 print(l)
-for ele in p:
-    print(ele)
+# for ele in p:
+#     print(ele)

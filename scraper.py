@@ -121,6 +121,27 @@ def get_json_link(url):
     return urljoin(url, ".json")
 
 
+def get_childs(comment, list_comments: list):
+    if comment["kind"] == "more":
+        for child in getpath(comment, ["data", "children"]):
+            list_comments.append(child)
+    else:
+        if getpath(comment, ["data", "replies"]) != "":
+            replies = getpath(comment, ["data", "replies", "data", "children"])
+            for replie in replies:
+                if replie["kind"] == "more":
+                    for ele in getpath(replie, ["data", "children"]):
+                        list_comments.append(ele)
+                else:
+                    list_comments.append(getpath(replie, ["data", "id"]))
+    data = RedditComment(
+        id=getpath(comment, ["data", "name"]),
+        parent=getpath(comment, ["data", "parent_id"]),
+        comment=getpath(comment, ["data", "body"]),
+    )
+    return data, list_comments
+
+
 def get_comments(url):
     list_return = []
     list_comments = deque()
@@ -139,30 +160,15 @@ def get_comments(url):
             print(response.status)
         json_page = json.loads(response.text())
         for comment in json_page[1]["data"]["children"]:
-            if comment["kind"] == "more":
-                for child in getpath(comment, ["data", "children"]):
-                    list_comments.append(child)
-            else:
-                if getpath(comment, ["data", "replies"]) != "":
-                    replies = getpath(comment, ["data", "replies", "data", "children"])
-                    for replie in replies:
-                        if replie["kind"] == "more":
-                            for ele in getpath(replie, ["data", "children"]):
-                                list_comments.append(ele)
-                        else:
-                            list_comments.append(getpath(replie, ["data", "id"]))
-            data = RedditComment(
-                id=getpath(comment, ["data", "name"]),
-                parent=getpath(comment, ["data", "parent_id"]),
-                comment=getpath(comment, ["data", "body"]),
-            )
+            data, list_comments = get_childs(comment, list_comments)
             list_return.append(data)
         sleep(random.uniform(1, 3))
     return len(list_return), list_return
 
 
 l, p = get_comments(
-    "https://old.reddit.com/r/reddit/comments/tqbf9w/bringing_back_rplace/"
+    "https://old.reddit.com/r/france/comments/1fudnpv/famous_ai_artist_says_hes_losing_millions_of/"
 )
 print(l)
-print(p)
+for ele in p:
+    print(ele)

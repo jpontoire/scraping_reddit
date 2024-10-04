@@ -10,9 +10,6 @@ from ebbe import getpath
 from collections import deque
 from urllib.parse import urljoin
 
-# ajout d'un cookie optionnel pour accéder à des sub privés ?
-# -> peut poser problème de timeout
-
 
 def get_old_url(url):
     domain = get_domain_name(url)
@@ -172,9 +169,51 @@ def get_comments(url):
     return len(list_return), list_return
 
 
-l, p = get_comments(
-    "https://old.reddit.com/r/reddit/comments/tqbf9w/bringing_back_rplace/"
-)
-print(l)
+
+def get_comment_l500(url):
+    list_return = []
+    list_comments = deque()
+    old_url = get_old_url(url) + "?limit=500"
+    response = request(old_url, spoof_ua=True)
+    soup = response.soup()
+    m_comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
+    i = 0
+    while m_comments:
+        i += 1
+        print(i)
+        com = m_comments.pop()
+        # print(com.get_display_text())
+        # n_childs = com.scrape_one("a[class='numchildren']:not(div.child a)")
+        # n_childs = com.find('a', class_='numchildren').text
+        # print(n_childs)
+        # if int(n_childs[1]) > 0:
+        child = com.find('div', class_='child')
+        if child.text != "":
+            print(child)
+            child = child.find('div')
+            child = child.find_all('div', id=lambda x: x and x.startswith('thing_t1'), recursive=False)
+            # print(child)
+            for ele in child:
+                m_comments.append(ele)
+        data = RedditComment(
+            id="test",
+            parent="test",
+            comment=com.scrape_one("div[class='md']:not(div.child a)")
+        )
+        list_return.append(data)
+    print(len(list_return))
+
+
+
+
+get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
+
+
+
+# l, p = get_comments(
+#     "https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/",
+#     "top"
+# )
+# print(l)
 # for ele in p:
 #     print(ele)

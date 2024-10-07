@@ -10,6 +10,7 @@ from ebbe import getpath
 from collections import deque
 from urllib.parse import urljoin
 import csv
+import re
 
 
 def get_old_url(url):
@@ -213,9 +214,15 @@ def get_comment_l500(url):
         print(i)
         com = m_comments.pop()
         if "morerecursion" in com.get('class'):
-            url = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            print(url)
-            list_return = get_comments_test(url, list_return)
+            print(com)
+            url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
+            print(url_rec)
+            list_return = get_comments_test(url_rec, list_return)
+        elif "morechildren" in com.get('class'):
+            pass
+            # trouver un moyen de récupérer les id dans le onclick
+
+
         else:
             child = com.find('div', class_='child')
             if child.text != "":
@@ -245,13 +252,4 @@ def get_comment_l500(url):
 
 # get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
 
-get_comment_l500("https://old.reddit.com/r/france/comments/1fxqc8j/temps_de_travail_lancien_ministre_g%C3%A9rald_darmanin/")
-
-
-# l, p = get_comments(
-#     "https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/",
-#     "top"
-# )
-# print(l)
-# for ele in p:
-#     print(ele)
+get_comment_l500("https://old.reddit.com/r/Genshin_Impact_Leaks/comments/1fy42sp/ororon/")

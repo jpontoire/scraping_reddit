@@ -9,6 +9,7 @@ import json
 from ebbe import getpath
 from collections import deque
 from urllib.parse import urljoin
+import csv
 
 
 def get_old_url(url):
@@ -169,45 +170,82 @@ def get_comments(url):
     return len(list_return), list_return
 
 
+def get_comments_test(url, list_return):
+    list_comments = deque()
+    old_url = get_old_url(url)
+    old_url_json = get_json_link(old_url)
+    list_comments.append(old_url_json)
+    while list_comments:
+        if len(list_comments)%2 == 0:
+            urls = list_comments.popleft()
+        else:
+            urls = list_comments.pop()
+        if len(urls) == 7 or isinstance(urls, str):
+            response = request(get_json_link(get_permalink(old_url, urls)))
+            print(response.status)
+            while(response.status == 429):
+                sleep(120)
+                response = request(get_json_link(get_permalink(old_url, urls)))
+                print(response.status)
+            json_page = json.loads(response.text())
+            for comment in json_page[1]["data"]["children"]:
+                data, list_comments = get_childs(comment, list_comments)
+                list_return.append(data)
+            sleep(random.uniform(1, 3))
+        else:
+            print("42")
+            data, list_comments = get_childs(urls, list_comments)
+            list_return.append(data)
+    return list_return
+
+
 
 def get_comment_l500(url):
     list_return = []
-    list_comments = deque()
     old_url = get_old_url(url) + "?limit=500"
     response = request(old_url, spoof_ua=True)
     soup = response.soup()
     m_comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
     i = 0
+    verif = True
     while m_comments:
         i += 1
         print(i)
         com = m_comments.pop()
-        # print(com.get_display_text())
-        # n_childs = com.scrape_one("a[class='numchildren']:not(div.child a)")
-        # n_childs = com.find('a', class_='numchildren').text
-        # print(n_childs)
-        # if int(n_childs[1]) > 0:
-        child = com.find('div', class_='child')
-        if child.text != "":
-            print(child)
-            child = child.find('div')
-            child = child.find_all('div', id=lambda x: x and x.startswith('thing_t1'), recursive=False)
-            # print(child)
-            for ele in child:
-                m_comments.append(ele)
-        data = RedditComment(
-            id="test",
-            parent="test",
-            comment=com.scrape_one("div[class='md']:not(div.child a)")
-        )
-        list_return.append(data)
-    print(len(list_return))
+        if "morerecursion" in com.get('class'):
+            url = f"https://old.reddit.com{com.scrape_one("a", "href")}"
+            print(url)
+            list_return = get_comments_test(url, list_return)
+        else:
+            child = com.find('div', class_='child')
+            if child.text != "":
+                child = child.find('div')
+                child = child.find_all('div', id=lambda x: x and x.startswith('thing_t1'), recursive=False)
+                for ele in child:
+                    m_comments.append(ele)
+                    if "morerecursion" in ele.get('class'):
+                        verif = False
+            if verif:
+                data = RedditComment(
+                    id=com.get('id').split('_')[-1],
+                    parent="test",
+                    comment=com.scrape_one("div[class='md']:not(div.child a)")
+                )
+                if data.id != "":
+                    list_return.append(data)
+            verif = True
+    with open("test.csv", "w", newline='', encoding='utf-8') as file:
+        writer = csv.writer(file)
+        writer.writerow(["ID", "Parent", "Comment"])
+        for comment in list_return:
+            writer.writerow([comment.id, comment.parent, comment.comment])
 
 
 
 
-get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
+# get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
 
+get_comment_l500("https://old.reddit.com/r/france/comments/1fxqc8j/temps_de_travail_lancien_ministre_g%C3%A9rald_darmanin/")
 
 
 # l, p = get_comments(

@@ -236,13 +236,11 @@ def get_comment_l500(url):
         print(i)
         com = m_comments.pop()
         if "morerecursion" in com.get('class'): # le délire des threads, à vérifier
-            print("On est dans un thread zebi !")
-            # print(com)
-            # url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            # print(url_rec)
-            # list_return = get_comments_test(url_rec, list_return)
+            print(com)
+            url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
+            print(url_rec)
+            list_return = get_comments_test(url_rec, list_return)
         elif "morechildren" in com.get('class'):
-            print("Là c'est le bouton chiant")
             a = com.select_one("a")
             onclick = a['onclick']
             id_list = extract_t1_ids(onclick)

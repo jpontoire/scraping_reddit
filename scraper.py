@@ -198,12 +198,7 @@ def get_comments_test(url, list_return):
         else:
             urls = list_comments.pop()
         if len(urls) == 7 or isinstance(urls, str):
-            response = request(get_json_link(get_permalink(old_url, urls)))
-            print(response.status)
-            while(response.status == 429):
-                sleep(120)
-                response = request(get_json_link(get_permalink(old_url, urls)))
-                print(response.status)
+            response = reddit_request(get_json_link(get_permalink(old_url, urls)))
             json_page = json.loads(response.text())
             for comment in json_page[1]["data"]["children"]:
                 data, list_comments = get_childs(comment, list_comments)
@@ -236,9 +231,7 @@ def get_comment_l500(url):
         print(i)
         com = m_comments.pop()
         if "morerecursion" in com.get('class'): # le délire des threads, à vérifier
-            print(com)
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            print(url_rec)
             list_return = get_comments_test(url_rec, list_return)
         elif "morechildren" in com.get('class'):
             a = com.select_one("a")

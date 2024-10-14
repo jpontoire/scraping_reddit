@@ -58,6 +58,16 @@ def has_reddit_comments(url):
     return True
 
 
+def reddit_request(url):
+    response = request(url)
+    remaining_requests = float(response.headers['x-ratelimit-remaining'])
+    if remaining_requests == 0:
+        time_remaining = int(response.headers['x-ratelimit-reset'])
+        sleep(time_remaining)
+        return reddit_request(url)
+    return response
+
+
 def get_posts_urls(url, nb_post):
     list_posts = set()
     nb_pages = ceil(nb_post / 25)
@@ -65,7 +75,7 @@ def get_posts_urls(url, nb_post):
     n_crawled = 0
 
     for _ in range(nb_pages):
-        response = request(old_url, spoof_ua=True)
+        response = reddit_request(old_url)
         soup = response.soup()
         list_buttons = soup.select("ul[class='flat-list buttons']")
         for link in list_buttons:
@@ -83,7 +93,7 @@ def get_posts(url, nb_post):
     posts = []
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
-        response = request(url, spoof_ua=True)
+        response = reddit_request(url)
         soup = response.soup()
         title = soup.force_select_one("a[class^='title']").get_text()
         upvote = soup.force_select_one("div[class='score'] span").get_text()
@@ -141,6 +151,8 @@ def get_childs(comment, list_comments: list):
     return data, list_comments
 
 
+# version avec plein de requêtes
+
 def get_comments(url):
     list_return = []
     list_comments = deque()
@@ -170,6 +182,9 @@ def get_comments(url):
             list_return.append(data)
     return len(list_return), list_return
 
+
+
+# version avec moins de requêtes
 
 def get_comments_test(url, list_return):
     list_comments = deque()
@@ -220,9 +235,6 @@ def get_comment_l500(url):
             list_return = get_comments_test(url_rec, list_return)
         elif "morechildren" in com.get('class'):
             pass
-            # trouver un moyen de récupérer les id dans le onclick
-
-
         else:
             child = com.find('div', class_='child')
             if child.text != "":
@@ -252,4 +264,4 @@ def get_comment_l500(url):
 
 # get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
 
-get_comment_l500("https://old.reddit.com/r/Genshin_Impact_Leaks/comments/1fy42sp/ororon/")
+# get_comment_l500("https://old.reddit.com/r/AskReddit/comments/1g0ewi1/what_makes_you_lonely/")

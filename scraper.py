@@ -63,6 +63,7 @@ def reddit_request(url):
     remaining_requests = float(response.headers['x-ratelimit-remaining'])
     if remaining_requests == 0:
         time_remaining = int(response.headers['x-ratelimit-reset'])
+        print(f"Time before next request : {time_remaining}s")
         sleep(time_remaining)
         return reddit_request(url)
     return response
@@ -216,10 +217,16 @@ def get_comments_test(url, list_return):
 
 
 
+def extract_t1_ids(text):
+    pattern = r't1_(\w+)'
+    return [match.group(1) for match in re.finditer(pattern, text)]
+
+
 def get_comment_l500(url):
     list_return = []
-    old_url = get_old_url(url) + "?limit=500"
-    response = request(old_url, spoof_ua=True)
+    old_url = get_old_url(url)
+    url_limit = old_url + "?limit=500"
+    response = reddit_request(url_limit)
     soup = response.soup()
     m_comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
     i = 0
@@ -228,13 +235,30 @@ def get_comment_l500(url):
         i += 1
         print(i)
         com = m_comments.pop()
-        if "morerecursion" in com.get('class'):
-            print(com)
-            url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            print(url_rec)
-            list_return = get_comments_test(url_rec, list_return)
+        if "morerecursion" in com.get('class'): # le délire des threads, à vérifier
+            print("On est dans un thread zebi !")
+            # print(com)
+            # url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
+            # print(url_rec)
+            # list_return = get_comments_test(url_rec, list_return)
         elif "morechildren" in com.get('class'):
-            pass
+            print("Là c'est le bouton chiant")
+            a = com.select_one("a")
+            onclick = a['onclick']
+            id_list = extract_t1_ids(onclick)
+            i = 0
+            for id in id_list:
+                i+=1
+                print(i)
+                comment_url = f"{old_url}{id}"
+                response = reddit_request(comment_url)
+                print(f"x-ratelimit-remaining : {response.headers['x-ratelimit-remaining']}")
+                print(f"time before reset : {response.headers['x-ratelimit-reset']}")
+                soup = response.soup()
+                comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
+                for com in comments:
+                    m_comments.append(com)
+                
         else:
             child = com.find('div', class_='child')
             if child.text != "":
@@ -265,3 +289,5 @@ def get_comment_l500(url):
 # get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
 
 # get_comment_l500("https://old.reddit.com/r/AskReddit/comments/1g0ewi1/what_makes_you_lonely/")
+
+get_comment_l500("https://old.reddit.com/r/reddit/comments/1css0ws/we_heard_you_awards_are_back/?limit=500")

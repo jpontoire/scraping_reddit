@@ -198,7 +198,11 @@ def get_comments_test(url, list_return):
         else:
             urls = list_comments.pop()
         if len(urls) == 7 or isinstance(urls, str):
+            print(urls)
+            print(get_json_link(get_permalink(old_url, urls)))
             response = reddit_request(get_json_link(get_permalink(old_url, urls)))
+            print(response.status)
+            print(response.headers)
             json_page = json.loads(response.text())
             for comment in json_page[1]["data"]["children"]:
                 data, list_comments = get_childs(comment, list_comments)
@@ -230,26 +234,24 @@ def get_comment_l500(url):
         i += 1
         print(i)
         com = m_comments.pop()
-        if "morerecursion" in com.get('class'): # le délire des threads, à vérifier
+        if "morerecursion" in com.get('class'):
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            list_return = get_comments_test(url_rec, list_return)
+            response = reddit_request(url_rec)
+            soup = response.soup()
+            comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
+            for com in comments:
+                m_comments.append(com)
         elif "morechildren" in com.get('class'):
             a = com.select_one("a")
             onclick = a['onclick']
             id_list = extract_t1_ids(onclick)
-            i = 0
             for id in id_list:
-                i+=1
-                print(i)
                 comment_url = f"{old_url}{id}"
                 response = reddit_request(comment_url)
-                print(f"x-ratelimit-remaining : {response.headers['x-ratelimit-remaining']}")
-                print(f"time before reset : {response.headers['x-ratelimit-reset']}")
                 soup = response.soup()
                 comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
                 for com in comments:
                     m_comments.append(com)
-                
         else:
             child = com.find('div', class_='child')
             if child.text != "":
@@ -265,20 +267,20 @@ def get_comment_l500(url):
                     parent="test",
                     comment=com.scrape_one("div[class='md']:not(div.child a)")
                 )
-                if data.id != "":
-                    list_return.append(data)
+            if data.id != "":
+                list_return.append(data)
             verif = True
     with open("test.csv", "w", newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["ID", "Parent", "Comment"])
         for comment in list_return:
             writer.writerow([comment.id, comment.parent, comment.comment])
+    print(len(list_return))
 
 
 
+# get_comment_l500("https://old.reddit.com/r/mildlyinteresting/comments/1g3wrla/i_got_bit_by_a_mosquito_twice_and_a_line_joining/")
 
-# get_comment_l500("https://old.reddit.com/r/france/comments/1fvtx1f/%C3%A0_paris_le_parc_locatif_seffondre_car_des/")
+# get_comment_l500("https://old.reddit.com/r/france/comments/1g3pyan/the_understudied_female_sexual_predator/")
 
-# get_comment_l500("https://old.reddit.com/r/AskReddit/comments/1g0ewi1/what_makes_you_lonely/")
-
-get_comment_l500("https://old.reddit.com/r/reddit/comments/1css0ws/we_heard_you_awards_are_back/?limit=500")
+get_comment_l500("https://old.reddit.com/r/france/comments/1g3hx7f/il_y_a_une_volont%C3%A9_isra%C3%A9lienne_dintimidation_ils/")

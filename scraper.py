@@ -195,11 +195,8 @@ def extract_t1_ids(text):
 def get_childs_l500(url, list_comments):
     response = reddit_request(url)
     soup = response.soup()
-    comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
+    comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     for com in comments:
-        list_comments.append(com)
-    del_comments = soup.select("div[class='commentarea']>div>div[class$='deleted comment ']")
-    for com in del_comments:
         list_comments.append(com)
     return list_comments
 
@@ -210,10 +207,7 @@ def get_comment_l500(url):
     url_limit = old_url + "?limit=500"
     response = reddit_request(url_limit)
     soup = response.soup()
-    m_comments = soup.select("div[class='commentarea']>div>div[id^='thing_t1']")
-    del_comments = soup.select("div[class='commentarea']>div>div[class$='deleted comment ']")
-    for com in del_comments:
-        m_comments.append(com)
+    m_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     # i = 0
     verif = True
     while m_comments:

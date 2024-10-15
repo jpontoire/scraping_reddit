@@ -267,8 +267,8 @@ def get_comment_l500(url):
                     parent="test",
                     comment=com.scrape_one("div[class='md']:not(div.child a)")
                 )
-            if data.id != "":
-                list_return.append(data)
+                if data.id != "":
+                    list_return.append(data)
             verif = True
     with open("test.csv", "w", newline='', encoding='utf-8') as file:
         writer = csv.writer(file)

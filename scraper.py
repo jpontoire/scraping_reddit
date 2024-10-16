@@ -241,29 +241,17 @@ def get_comment_l500(url):
             child = com.find('div', class_='child')
             if child.text != "":
                 child = child.find('div')
-                child_com = child.find_all('div', id=lambda x: x and x.startswith('thing_t1'), recursive=False)
+                child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
                 for ele in child_com:
                     m_comments.append((current_id, ele))
                     if "morerecursion" in ele.get('class'):
                         verif = False
-                child_del = child.find_all('div', class_=lambda x: x and 'deleted comment' in x, recursive=False)
-                for ele in child_del:
-                    m_comments.append((current_id, ele))
-                    if "morerecursion" in ele.get('class'):
-                        verif = False
             if verif:
-                if "deleted comment" in com.get('class'):
-                    data = RedditComment(
-                        id=current_id,
-                        parent=parent,
-                        comment='Removed'
-                    )
-                else:    
-                    data = RedditComment(
-                        id=current_id,
-                        parent=parent,
-                        comment=com.scrape_one("div[class='md']:not(div.child a)")
-                    )
+                data = RedditComment(
+                    id=current_id,
+                    parent=parent,
+                    comment=com.scrape_one("div[class='md']:not(div.child a)")
+                )
                 if data.id != "":
                     list_return.append(data)
             verif = True

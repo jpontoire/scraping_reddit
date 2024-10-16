@@ -192,63 +192,71 @@ def extract_t1_ids(text):
     return [match.group(1) for match in re.finditer(pattern, text)]
 
 
-def get_childs_l500(url, list_comments):
+def get_childs_l500(url, list_comments, parent_id):
     response = reddit_request(url)
     soup = response.soup()
     comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     for com in comments:
-        list_comments.append(com)
+        list_comments.append((parent_id, com))
     return list_comments
 
 
 def get_comment_l500(url):
     list_return = []
+    m_comments = []
     old_url = get_old_url(url)
     url_limit = old_url + "?limit=500"
     response = reddit_request(url_limit)
     soup = response.soup()
-    m_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
+    firts_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
+    for ele in firts_comments:
+        m_comments.append((None, ele))
     # i = 0
     verif = True
     while m_comments:
         # i += 1
         # print(i)
-        com = m_comments.pop()
+        parent, com = m_comments.pop()
+        current_id = com.get('id')
+        if current_id:
+            current_id = current_id.split('_')[-1]
+        else:
+            current_id = com.get('data-permalink').split('/')[-2]
         if "morerecursion" in com.get('class'):
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            m_comments = get_childs_l500(url_rec, m_comments)
+            m_comments = get_childs_l500(url_rec, m_comments, current_id)
         elif "morechildren" in com.get('class'):
             a = com.select_one("a")
             onclick = a['onclick']
             id_list = extract_t1_ids(onclick)
             for id in id_list:
                 comment_url = f"{old_url}{id}"
-                m_comments = get_childs_l500(comment_url, m_comments)
+                m_comments = get_childs_l500(comment_url, m_comments, current_id)
         else:
             child = com.find('div', class_='child')
             if child.text != "":
                 child = child.find('div')
                 child_com = child.find_all('div', id=lambda x: x and x.startswith('thing_t1'), recursive=False)
                 for ele in child_com:
-                    m_comments.append(ele)
+                    m_comments.append((current_id, ele))
                     if "morerecursion" in ele.get('class'):
                         verif = False
                 child_del = child.find_all('div', class_=lambda x: x and 'deleted comment' in x, recursive=False)
                 for ele in child_del:
-                    m_comments.append(ele)
+                    m_comments.append((current_id, ele))
                     if "morerecursion" in ele.get('class'):
                         verif = False
             if verif:
                 if "deleted comment" in com.get('class'):
                     data = RedditComment(
-                        id=com.get('data-permalink').split('/')[-2],
-                        parent="test",
+                        id=current_id,
+                        parent=parent,
                         comment='Removed'
                     )
                 else:    
                     data = RedditComment(
-                        id=com.get('id').split('_')[-1],
-                        parent="test",
+                        id=current_id,
+                        parent=parent,
                         comment=com.scrape_one("div[class='md']:not(div.child a)")
                     )
                 if data.id != "":

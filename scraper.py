@@ -167,19 +167,12 @@ def get_comments_json(url):
         else:
             urls = list_comments.pop()
         if len(urls) == 7 or isinstance(urls, str):
-            response = request(get_json_link(get_permalink(old_url, urls)))
-            print(response.status)
-            while(response.status == 429):
-                sleep(120)
-                response = request(get_json_link(get_permalink(old_url, urls)))
-                print(response.status)
+            response = reddit_request(get_json_link(get_permalink(old_url, urls)))
             json_page = json.loads(response.text())
             for comment in json_page[1]["data"]["children"]:
                 data, list_comments = get_childs(comment, list_comments)
                 list_return.append(data)
-            sleep(random.uniform(0, 1))
         else:
-            print("42")
             data, list_comments = get_childs(urls, list_comments)
             list_return.append(data)
     return len(list_return), list_return

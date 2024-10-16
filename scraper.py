@@ -201,6 +201,15 @@ def get_childs_l500(url, list_comments, parent_id):
     return list_comments
 
 
+def get_current_id(com):
+    current_id = com.get('id')
+    if current_id:
+        current_id = current_id.split('_')[-1]
+    else:
+        current_id = com.get('data-permalink').split('/')[-2]
+    return current_id
+
+
 def get_comment_l500(url):
     list_return = []
     m_comments = []
@@ -217,11 +226,7 @@ def get_comment_l500(url):
         # i += 1
         # print(i)
         parent, com = m_comments.pop()
-        current_id = com.get('id')
-        if current_id:
-            current_id = current_id.split('_')[-1]
-        else:
-            current_id = com.get('data-permalink').split('/')[-2]
+        current_id = get_current_id(com)
         if "morerecursion" in com.get('class'):
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
             m_comments = get_childs_l500(url_rec, m_comments, current_id)

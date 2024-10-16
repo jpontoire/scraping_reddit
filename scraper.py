@@ -61,7 +61,7 @@ def has_reddit_comments(url):
 def reddit_request(url):
     response = request(url)
     remaining_requests = float(response.headers['x-ratelimit-remaining'])
-    if remaining_requests == 0:
+    if remaining_requests == 1:
         time_remaining = int(response.headers['x-ratelimit-reset'])
         print(f"Time before next request : {time_remaining}s")
         sleep(time_remaining)

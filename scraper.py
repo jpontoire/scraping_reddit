@@ -121,6 +121,9 @@ def get_posts(url, nb_post):
     return posts
 
 
+
+# ------------------------------------------------------------- JSON ----------------------------------------------------------------------------------------
+
 def get_permalink(url, id):
     if is_url(id):
         return id
@@ -152,9 +155,7 @@ def get_childs(comment, list_comments: list):
     return data, list_comments
 
 
-# version avec plein de requêtes
-
-def get_comments(url):
+def get_comments_json(url):
     list_return = []
     list_comments = deque()
     old_url = get_old_url(url)
@@ -185,7 +186,8 @@ def get_comments(url):
 
 
 
-# version avec moins de requêtes
+# ---------------------------------------------------------- Optimized version ------------------------------------------------------------------------------
+
 
 def extract_t1_ids(text):
     pattern = r't1_(\w+)'
@@ -215,27 +217,26 @@ def get_current_id(com):
     return current_id
 
 
-def get_comment_l500(url):
+def get_comment_l500(url, version):
+    if not(version == 'all' or version == 'fast'):
+        print("Erreur version")
+        return 0
     list_return = []
     m_comments = []
     old_url = get_old_url(url)
     url_limit = old_url + "?limit=500"
     response = reddit_request(url_limit)
     soup = response.soup()
-    firts_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
-    for ele in firts_comments:
+    first_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
+    for ele in first_comments:
         m_comments.append((None, ele))
-    # i = 0
-    verif = True
     while m_comments:
-        # i += 1
-        # print(i)
         parent, com = m_comments.pop()
         current_id = get_current_id(com)
-        if "morerecursion" in com.get('class'):
+        if "morerecursion" in com.get('class') and version == 'all':
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
             m_comments = get_childs_l500(url_rec, m_comments, parent)
-        elif "morechildren" in com.get('class'):
+        elif "morechildren" in com.get('class') and version == 'all':
             a = com.select_one("a")
             onclick = a['onclick']
             id_list = extract_t1_ids(onclick)
@@ -246,7 +247,10 @@ def get_comment_l500(url):
             child = com.find('div', class_='child')
             if child.text != "":
                 child = child.find('div')
-                child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
+                if version == 'all':
+                    child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
+                else:
+                    child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x), recursive=False)
                 for ele in child_com:
                     m_comments.append((current_id, ele))
             data = RedditComment(
@@ -265,8 +269,8 @@ def get_comment_l500(url):
 
 
 
-# get_comment_l500("https://old.reddit.com/r/mildlyinteresting/comments/1g3wrla/i_got_bit_by_a_mosquito_twice_and_a_line_joining/")
+def main():
+    get_comment_l500("https://old.reddit.com/r/reddit/comments/1css0ws/we_heard_you_awards_are_back/", 'fast')
 
-# get_comment_l500("https://old.reddit.com/r/france/comments/1g3pyan/the_understudied_female_sexual_predator/")
-
-get_comment_l500("https://old.reddit.com/r/reddit/comments/14gb7xy/changelog_chat_and_flair_navigation_updates/?limit=500")
+if __name__ == '__main__':
+    main()

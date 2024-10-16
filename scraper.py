@@ -3,7 +3,6 @@ from math import ceil
 from ural import get_domain_name, urlpathsplit, is_url
 from auth import COOKIE
 from time import sleep
-import random
 from type import RedditPost, RedditComment
 import json
 from ebbe import getpath
@@ -11,6 +10,10 @@ from collections import deque
 from urllib.parse import urljoin
 import csv
 import re
+import sys
+
+
+# --------------------------------------------------------- TOOLS --------------------------------------------------------------------
 
 
 def get_old_url(url):
@@ -69,12 +72,14 @@ def reddit_request(url):
     return response
 
 
+# ------------------------------------------------------- GET POSTS --------------------------------------------------------------
+
+
 def get_posts_urls(url, nb_post):
     list_posts = set()
-    nb_pages = ceil(nb_post / 25)
+    nb_pages = ceil(int(nb_post) / 25)
     old_url = get_old_url(url)
     n_crawled = 0
-
     for _ in range(nb_pages):
         response = reddit_request(old_url)
         soup = response.soup()
@@ -86,7 +91,6 @@ def get_posts_urls(url, nb_post):
                 list_posts.update(link.scrape("a[class^='bylink comments']", "href"))
                 n_crawled += 1
         old_url = soup.scrape("span[class='next-button'] a", "href")[0]
-        sleep(random.uniform(0, 1))
     return list_posts
 
 
@@ -94,7 +98,12 @@ def get_posts(url, nb_post):
     posts = []
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
+        print(url)
         response = reddit_request(url)
+        print(response.status)
+        if(response.url == 429):
+            print(response.headers)
+            print(response.end_url)
         soup = response.soup()
         title = soup.force_select_one("a[class^='title']").get_text()
         upvote = soup.force_select_one("div[class='score'] span").get_text()
@@ -115,9 +124,7 @@ def get_posts(url, nb_post):
             published_date=published_date,
             link=link,
         )
-        print(post)
         posts.append(post)
-        sleep(random.uniform(0, 1))
     return posts
 
 
@@ -210,7 +217,7 @@ def get_current_id(com):
     return current_id
 
 
-def get_comment_l500(url, version):
+def get_comments(url, version):
     if not(version == 'all' or version == 'fast'):
         print("Erreur version")
         return 0
@@ -253,17 +260,20 @@ def get_comment_l500(url, version):
             )
             if data.id != "":
                 list_return.append(data)
-    with open("test.csv", "w", newline='', encoding='utf-8') as file:
+    url_split = urlpathsplit(url)
+    file_name = f"{url_split[1]}-{url_split[3]}"
+    with open(f"{file_name}.csv", "w", newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["ID", "Parent", "Comment"])
         for comment in list_return:
             writer.writerow([comment.id, comment.parent, comment.comment])
-    print(len(list_return))
 
 
 
-def main():
-    get_comment_l500("https://old.reddit.com/r/reddit/comments/1css0ws/we_heard_you_awards_are_back/", 'fast')
+def main(args): # url - nb_posts - mode
+    posts = get_posts(args[0], args[1])
+    for post in posts:
+        get_comments(post, args[2])
 
 if __name__ == '__main__':
-    main()
+    main(sys.argv[1:])

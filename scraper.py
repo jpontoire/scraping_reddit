@@ -197,7 +197,12 @@ def get_childs_l500(url, list_comments, parent_id):
     soup = response.soup()
     comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     for com in comments:
-        list_comments.append((parent_id, com))
+        child = com.find('div', class_='child')
+        if child.text != "":
+            child = child.find('div')
+            child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
+            for ele in child_com:
+                list_comments.append((parent_id, ele))
     return list_comments
 
 
@@ -229,7 +234,7 @@ def get_comment_l500(url):
         current_id = get_current_id(com)
         if "morerecursion" in com.get('class'):
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
-            m_comments = get_childs_l500(url_rec, m_comments, current_id)
+            m_comments = get_childs_l500(url_rec, m_comments, parent)
         elif "morechildren" in com.get('class'):
             a = com.select_one("a")
             onclick = a['onclick']
@@ -244,17 +249,13 @@ def get_comment_l500(url):
                 child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
                 for ele in child_com:
                     m_comments.append((current_id, ele))
-                    if "morerecursion" in ele.get('class'):
-                        verif = False
-            if verif:
-                data = RedditComment(
-                    id=current_id,
-                    parent=parent,
-                    comment=com.scrape_one("div[class='md']:not(div.child a)")
-                )
-                if data.id != "":
-                    list_return.append(data)
-            verif = True
+            data = RedditComment(
+                id=current_id,
+                parent=parent,
+                comment=com.scrape_one("div[class='md']:not(div.child a)")
+            )
+            if data.id != "":
+                list_return.append(data)
     with open("test.csv", "w", newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["ID", "Parent", "Comment"])

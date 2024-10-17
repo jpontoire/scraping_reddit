@@ -71,7 +71,6 @@ def reddit_request(url):
         sleep(time_remaining)
         return reddit_request(url)
     if response.status == 429:
-        print("429")
         return reddit_request(url)
     return response
 
@@ -98,7 +97,7 @@ def get_posts_urls(url, nb_post):
         soup = response.soup()
         list_buttons = soup.select("ul[class='flat-list buttons']")
         for link in list_buttons:
-            if n_crawled == nb_post:
+            if n_crawled == int(nb_post):
                 break
             if len(link.scrape("span[class='promoted-span']")) == 0:
                 list_posts.update(link.scrape("a[class^='bylink comments']", "href"))
@@ -397,16 +396,12 @@ def get_comments(url, version):
 
 
 def main(args):  # url - nb_posts - mode
-    # posts = get_posts_url(args[0], args[1])
-    # for post in posts:
-    #     get_comments(post.url, args[2])
-    # print(get_comments('https://old.reddit.com/r/redditdev/comments/1g16eqw/using_selenium_to_interface_with_reddit_instead/', 'all'))
-    posts = get_posts_urls("https://old.reddit.com/r/redditdev/", 200)
-    i = 0
+    posts = get_posts_urls(args[0], args[1])
+    i=0
     for post in posts:
-        i += 1
-        print(i)
-        get_comments(post, "all")
+        i+=1
+        print(f"Post n°{i}")
+        get_comments(post, args[2])
         sleep(1)
 
 

@@ -71,6 +71,9 @@ def reddit_request(url):
         print(f"Time before next request : {time_remaining}s")
         sleep(time_remaining)
         return reddit_request(url)
+    if response.status == 429:
+        print("429")
+        return reddit_request(url)
     return response
 
 
@@ -348,7 +351,7 @@ def main(args): # url - nb_posts - mode
     # for post in posts:
     #     get_comments(post.url, args[2])
     # print(get_comments('https://old.reddit.com/r/redditdev/comments/1g16eqw/using_selenium_to_interface_with_reddit_instead/', 'all'))
-    posts = get_posts_urls("https://old.reddit.com/r/redditdev/", 50)
+    posts = get_posts_urls("https://old.reddit.com/r/redditdev/", 200)
     i = 0
     for post in posts:
         i += 1

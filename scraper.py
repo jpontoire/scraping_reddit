@@ -11,7 +11,8 @@ from urllib.parse import urljoin
 import csv
 import re
 import sys
-
+import os
+import random
 
 # --------------------------------------------------------- TOOLS --------------------------------------------------------------------
 
@@ -62,6 +63,7 @@ def has_reddit_comments(url):
 
 
 def reddit_request(url):
+    sleep(1)
     response = request(url)
     remaining_requests = float(response.headers['x-ratelimit-remaining'])
     if remaining_requests == 1:
@@ -76,6 +78,15 @@ def reddit_request(url):
 
 
 def get_posts_urls(url, nb_post):
+    dir_name = urlpathsplit(url)[1]
+    try:
+        os.mkdir(dir_name)
+    except FileExistsError:
+        pass
+    except PermissionError:
+        print(f"Permission denied: Unable to create '{dir_name}'.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
     list_posts = set()
     nb_pages = ceil(int(nb_post) / 25)
     old_url = get_old_url(url)
@@ -98,9 +109,7 @@ def get_posts(url, nb_post):
     posts = []
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
-        print(url)
         response = reddit_request(url)
-        print(response.status)
         if(response.url == 429):
             print(response.headers)
             print(response.end_url)
@@ -126,6 +135,27 @@ def get_posts(url, nb_post):
         )
         posts.append(post)
     return posts
+
+
+def get_posts_info_on_subreddit(url, nb_posts): # ça permet pas de récupérer le texte de l'auteur
+    list_posts = []
+    nb_pages = ceil(int(nb_posts) / 25)
+    old_url = get_old_url(url)
+    n_crawled = 0
+    for _ in range(nb_pages):
+        response = reddit_request(old_url)
+        soup = response.soup()
+        posts = [post for post in soup.select("div[id^='thing_t3']") if 'promotedlink' not in post.get('class', [])]
+        for post in posts:
+            if n_crawled == nb_posts:
+                break
+            n_crawled +=1
+            title = post.force_select_one("a[class^='title']").get_text()
+            upvote = post.force_select_one("div[class='score unvoted']").get_text()
+            author = post.scrape_one("a[class^='author']", "href")
+            published_date = post.scrape_one("p[class='tagline'] time", "datetime")
+            link = post.scrape_one("a[class^='title']", "href")
+        # print(len(posts))
 
 
 
@@ -217,15 +247,59 @@ def get_current_id(com):
     return current_id
 
 
+
+def get_infos_on_post(response, main_dir_name, com_dir_name):
+    soup = response.soup()
+    title = soup.force_select_one("a[class^='title']").get_text()
+    upvote = soup.force_select_one("div[class='score'] span").get_text()
+    author = soup.scrape_one("a[class^='author']", "href")
+    published_date = soup.scrape_one("div[class='date'] time", "datetime")
+    link = soup.scrape_one("a[class^='title']", "href")
+    if urlpathsplit(link) == urlpathsplit(response.end_url):
+        link = None
+    author_text = soup.scrape_one(
+        "div[id='siteTable'] div[class^='usertext-body'] div p"
+    )
+    post = RedditPost(
+        title=title,
+        url=response.end_url,
+        author=author,
+        author_text=author_text,
+        upvote=upvote,
+        published_date=published_date,
+        link=link,
+    )
+    url_split = urlpathsplit(post.url)
+    file_name = f"{url_split[1]}_{url_split[3]}"
+    with open(f"{main_dir_name}/{com_dir_name}/{file_name}.csv", 'w') as f:
+        writer = csv.writer(f)
+        writer.writerow(['Title', 'URL', 'Author', 'Author Text', 'Upvote', 'Published Date', 'Link'])
+        writer.writerow([post.title, post.url, post.author, post.author_text, post.upvote, post.published_date, post.link])
+
+
+
+
 def get_comments(url, version):
     if not(version == 'all' or version == 'fast'):
         print("Erreur version")
         return 0
+    url_split = urlpathsplit(url)
+    main_dir_name = url_split[1]
+    com_dir_name = url_split[3]
+    try:
+        os.mkdir(f"{main_dir_name}/{com_dir_name}")
+    except FileExistsError:
+            pass
+    except PermissionError:
+        print(f"Permission denied: Unable to create '{com_dir_name}'.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
     list_return = []
     m_comments = []
     old_url = get_old_url(url)
     url_limit = old_url + "?limit=500"
     response = reddit_request(url_limit)
+    get_infos_on_post(response, main_dir_name, com_dir_name)
     soup = response.soup()
     first_comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     for ele in first_comments:
@@ -260,9 +334,8 @@ def get_comments(url, version):
             )
             if data.id != "":
                 list_return.append(data)
-    url_split = urlpathsplit(url)
-    file_name = f"{url_split[1]}-{url_split[3]}"
-    with open(f"{file_name}.csv", "w", newline='', encoding='utf-8') as file:
+    file_name = f"{url_split[1]}_{url_split[3]}_comments"
+    with open(f"{main_dir_name}/{com_dir_name}/{file_name}.csv", "w", newline='', encoding='utf-8') as file:
         writer = csv.writer(file)
         writer.writerow(["ID", "Parent", "Comment"])
         for comment in list_return:
@@ -271,9 +344,17 @@ def get_comments(url, version):
 
 
 def main(args): # url - nb_posts - mode
-    posts = get_posts(args[0], args[1])
+    # posts = get_posts(args[0], args[1])
+    # for post in posts:
+    #     get_comments(post.url, args[2])
+    # print(get_comments('https://old.reddit.com/r/redditdev/comments/1g16eqw/using_selenium_to_interface_with_reddit_instead/', 'all'))
+    posts = get_posts_urls("https://old.reddit.com/r/redditdev/", 50)
+    i = 0
     for post in posts:
-        get_comments(post, args[2])
+        i += 1
+        print(i)
+        get_comments(post, 'all')
+        sleep(1)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

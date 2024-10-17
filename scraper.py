@@ -12,7 +12,6 @@ import csv
 import re
 import sys
 import os
-import random
 
 # --------------------------------------------------------- TOOLS --------------------------------------------------------------------
 
@@ -65,9 +64,9 @@ def has_reddit_comments(url):
 def reddit_request(url):
     sleep(1)
     response = request(url)
-    remaining_requests = float(response.headers['x-ratelimit-remaining'])
+    remaining_requests = float(response.headers["x-ratelimit-remaining"])
     if remaining_requests == 1:
-        time_remaining = int(response.headers['x-ratelimit-reset'])
+        time_remaining = int(response.headers["x-ratelimit-reset"])
         print(f"Time before next request : {time_remaining}s")
         sleep(time_remaining)
         return reddit_request(url)
@@ -113,7 +112,7 @@ def get_posts(url, nb_post):
     list_posts_url = get_posts_urls(url, nb_post)
     for url in list_posts_url:
         response = reddit_request(url)
-        if(response.url == 429):
+        if response.url == 429:
             print(response.headers)
             print(response.end_url)
         soup = response.soup()
@@ -140,7 +139,9 @@ def get_posts(url, nb_post):
     return posts
 
 
-def get_posts_info_on_subreddit(url, nb_posts): # ça permet pas de récupérer le texte de l'auteur
+def get_posts_info_on_subreddit(
+    url, nb_posts
+):  # ça permet pas de récupérer le texte de l'auteur
     list_posts = []
     nb_pages = ceil(int(nb_posts) / 25)
     old_url = get_old_url(url)
@@ -148,11 +149,15 @@ def get_posts_info_on_subreddit(url, nb_posts): # ça permet pas de récupérer 
     for _ in range(nb_pages):
         response = reddit_request(old_url)
         soup = response.soup()
-        posts = [post for post in soup.select("div[id^='thing_t3']") if 'promotedlink' not in post.get('class', [])]
+        posts = [
+            post
+            for post in soup.select("div[id^='thing_t3']")
+            if "promotedlink" not in post.get("class", [])
+        ]
         for post in posts:
             if n_crawled == nb_posts:
                 break
-            n_crawled +=1
+            n_crawled += 1
             title = post.force_select_one("a[class^='title']").get_text()
             upvote = post.force_select_one("div[class='score unvoted']").get_text()
             author = post.scrape_one("a[class^='author']", "href")
@@ -161,8 +166,8 @@ def get_posts_info_on_subreddit(url, nb_posts): # ça permet pas de récupérer 
         # print(len(posts))
 
 
-
 # ------------------------------------------------------------- JSON ----------------------------------------------------------------------------------------
+
 
 def get_permalink(url, id):
     if is_url(id):
@@ -202,7 +207,7 @@ def get_comments_json(url):
     old_url_json = get_json_link(old_url)
     list_comments.append(old_url_json)
     while list_comments:
-        if len(list_comments)%2 == 0:
+        if len(list_comments) % 2 == 0:
             urls = list_comments.popleft()
         else:
             urls = list_comments.pop()
@@ -218,12 +223,11 @@ def get_comments_json(url):
     return len(list_return), list_return
 
 
-
 # ---------------------------------------------------------- Optimized version ------------------------------------------------------------------------------
 
 
 def extract_t1_ids(text):
-    pattern = r't1_(\w+)'
+    pattern = r"t1_(\w+)"
     return [match.group(1) for match in re.finditer(pattern, text)]
 
 
@@ -232,23 +236,32 @@ def get_childs_l500(url, list_comments, parent_id):
     soup = response.soup()
     comments = soup.select("div[class='commentarea']>div>div[class*='comment']")
     for com in comments:
-        child = com.find('div', class_='child')
+        child = com.find("div", class_="child")
         if child.text != "":
-            child = child.find('div')
-            child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
+            child = child.find("div")
+            child_com = child.find_all(
+                "div",
+                class_=lambda x: x
+                and (
+                    "comment" in x
+                    or "deleted comment" in x
+                    or "morerecursion" in x
+                    or "morechildren" in x
+                ),
+                recursive=False,
+            )
             for ele in child_com:
                 list_comments.append((parent_id, ele))
     return list_comments
 
 
 def get_current_id(com):
-    current_id = com.get('id')
+    current_id = com.get("id")
     if current_id:
-        current_id = current_id.split('_')[-1]
+        current_id = current_id.split("_")[-1]
     else:
-        current_id = com.get('data-permalink').split('/')[-2]
+        current_id = com.get("data-permalink").split("/")[-2]
     return current_id
-
 
 
 def get_infos_on_post(response, main_dir_name, com_dir_name):
@@ -274,16 +287,34 @@ def get_infos_on_post(response, main_dir_name, com_dir_name):
     )
     url_split = urlpathsplit(post.url)
     file_name = f"{url_split[1]}_{url_split[3]}"
-    with open(f"{main_dir_name}/{com_dir_name}/{file_name}.csv", 'w') as f:
+    with open(f"{main_dir_name}/{com_dir_name}/{file_name}.csv", "w") as f:
         writer = csv.writer(f)
-        writer.writerow(['Title', 'URL', 'Author', 'Author Text', 'Upvote', 'Published Date', 'Link'])
-        writer.writerow([post.title, post.url, post.author, post.author_text, post.upvote, post.published_date, post.link])
-
-
+        writer.writerow(
+            [
+                "Title",
+                "URL",
+                "Author",
+                "Author Text",
+                "Upvote",
+                "Published Date",
+                "Link",
+            ]
+        )
+        writer.writerow(
+            [
+                post.title,
+                post.url,
+                post.author,
+                post.author_text,
+                post.upvote,
+                post.published_date,
+                post.link,
+            ]
+        )
 
 
 def get_comments(url, version):
-    if not(version == 'all' or version == 'fast'):
+    if not (version == "all" or version == "fast"):
         print("Erreur version")
         return 0
     url_split = urlpathsplit(url)
@@ -292,7 +323,7 @@ def get_comments(url, version):
     try:
         os.mkdir(f"{main_dir_name}/{com_dir_name}")
     except FileExistsError:
-            pass
+        pass
     except PermissionError:
         print(f"Permission denied: Unable to create '{com_dir_name}'.")
     except Exception as e:
@@ -310,44 +341,63 @@ def get_comments(url, version):
     while m_comments:
         parent, com = m_comments.pop()
         current_id = get_current_id(com)
-        if "morerecursion" in com.get('class') and version == 'all':
+        if "morerecursion" in com.get("class") and version == "all":
             url_rec = f"https://old.reddit.com{com.scrape_one("a", "href")}"
             m_comments = get_childs_l500(url_rec, m_comments, parent)
-        elif "morechildren" in com.get('class') and version == 'all':
+        elif "morechildren" in com.get("class") and version == "all":
             a = com.select_one("a")
-            onclick = a['onclick']
+            onclick = a["onclick"]
             id_list = extract_t1_ids(onclick)
             for id in id_list:
                 comment_url = f"{old_url}{id}"
                 m_comments = get_childs_l500(comment_url, m_comments, current_id)
         else:
-            child = com.find('div', class_='child')
+            child = com.find("div", class_="child")
             if child.text != "":
-                child = child.find('div')
-                if version == 'all':
-                    child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x or 'morerecursion' in x or 'morechildren' in x), recursive=False)
+                child = child.find("div")
+                if version == "all":
+                    child_com = child.find_all(
+                        "div",
+                        class_=lambda x: x
+                        and (
+                            "comment" in x
+                            or "deleted comment" in x
+                            or "morerecursion" in x
+                            or "morechildren" in x
+                        ),
+                        recursive=False,
+                    )
                 else:
-                    child_com = child.find_all('div', class_=lambda x: x and ('comment' in x or 'deleted comment' in x), recursive=False)
+                    child_com = child.find_all(
+                        "div",
+                        class_=lambda x: x
+                        and ("comment" in x or "deleted comment" in x),
+                        recursive=False,
+                    )
                 for ele in child_com:
                     m_comments.append((current_id, ele))
             data = RedditComment(
                 id=current_id,
                 parent=parent,
-                comment=com.scrape_one("div[class='md']:not(div.child a)")
+                comment=com.scrape_one("div[class='md']:not(div.child a)"),
             )
             if data.id != "":
                 list_return.append(data)
     file_name = f"{url_split[1]}_{url_split[3]}_comments"
-    with open(f"{main_dir_name}/{com_dir_name}/{file_name}.csv", "w", newline='', encoding='utf-8') as file:
+    with open(
+        f"{main_dir_name}/{com_dir_name}/{file_name}.csv",
+        "w",
+        newline="",
+        encoding="utf-8",
+    ) as file:
         writer = csv.writer(file)
         writer.writerow(["ID", "Parent", "Comment"])
         for comment in list_return:
             writer.writerow([comment.id, comment.parent, comment.comment])
 
 
-
-def main(args): # url - nb_posts - mode
-    # posts = get_posts(args[0], args[1])
+def main(args):  # url - nb_posts - mode
+    # posts = get_posts_url(args[0], args[1])
     # for post in posts:
     #     get_comments(post.url, args[2])
     # print(get_comments('https://old.reddit.com/r/redditdev/comments/1g16eqw/using_selenium_to_interface_with_reddit_instead/', 'all'))
@@ -356,8 +406,9 @@ def main(args): # url - nb_posts - mode
     for post in posts:
         i += 1
         print(i)
-        get_comments(post, 'all')
+        get_comments(post, "all")
         sleep(1)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main(sys.argv[1:])

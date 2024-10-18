@@ -93,6 +93,8 @@ def get_posts_urls(url, nb_post):
     old_url = get_old_url(url)
     n_crawled = 0
     for _ in range(nb_pages):
+        if n_crawled == int(nb_post):
+            break
         response = reddit_request(old_url)
         soup = response.soup()
         list_buttons = soup.select("ul[class='flat-list buttons']")

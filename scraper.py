@@ -1,7 +1,6 @@
 from minet.web import request
 from math import ceil
 from ural import get_domain_name, urlpathsplit, is_url
-from auth import COOKIE
 from time import sleep
 from type import RedditPost, RedditComment
 import json
@@ -13,19 +12,35 @@ import re
 import sys
 import os
 
+ID_RE = re.compile(r"t1_(\w+)")
+
 # --------------------------------------------------------- TOOLS --------------------------------------------------------------------
 
 
 def get_old_url(url):
     domain = get_domain_name(url)
     path = urlpathsplit(url)
-    return f"https://old.{domain}/" + "/".join(path) + "/"
+    old_url = f"https://old.{domain}"
+    for ele in path:
+        old_url = urljoin(old_url, f"{ele}/")
+    return old_url
 
 
 def get_new_url(url):
     domain = get_domain_name(url)
     path = urlpathsplit(url)
-    return f"https://www.{domain}/" + "/".join(path) + "/"
+    new_url = f"https://old.{domain}"
+    for ele in path:
+        new_url = urljoin(new_url, f"{ele}/")
+    return new_url
+
+def get_url_from_subreddit(name: str):
+    if is_url(name):
+        return name
+    name = name.lstrip("/")
+    if name.startswith("r/"):
+        return urljoin("https://old.reddit.com/", name)
+    return urljoin("https://old.reddit.com/r/", name)
 
 
 def is_user(user):
@@ -62,7 +77,6 @@ def has_reddit_comments(url):
 
 
 def reddit_request(url):
-    sleep(1)
     response = request(url)
     remaining_requests = float(response.headers["x-ratelimit-remaining"])
     if remaining_requests == 1:
@@ -227,9 +241,11 @@ def get_comments_json(url):
 # ---------------------------------------------------------- Optimized version ------------------------------------------------------------------------------
 
 
-def extract_t1_ids(text):
-    pattern = r"t1_(\w+)"
-    return [match.group(1) for match in re.finditer(pattern, text)]
+def extract_t1_ids(text: str):
+    ids = [match.group(1) for match in re.finditer(ID_RE, text)]
+    if ids:
+        return ids
+    return text.split("'")[-4].split(",")
 
 
 def get_childs_l500(url, list_comments, parent_id):
